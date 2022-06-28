@@ -35,23 +35,34 @@ end
 --[[---------------------------------------------------------
 	Generates and prints a list of $sequences to the console in QC format
 		- smds = The list of animation names or the SMD txt file name
+        - defArgs = The default arguments to use for the sequences
     Example
         local tbl = { "anim1", "anim2", "anim3" }
         Valve.CreateSequences( "anims")
         Valve.CreateSequences( tbl )
 -----------------------------------------------------------]]
-Valve.CreateSequences = function(smds)
+Valve.CreateSequences = function(smds,defArgs)
     if type(smds) != "table" then
         smds = Valve.ReadSMDs(smds)
     end
     local list = {}
+    local addLoop = defArgs.Loop or false
+    local setFPS = defArgs.FPS or 30
+    local walkframes = defArgs.WalkFrames or false
     for _,smd in pairs(smds) do
         print("\n")
         print('$Sequence "' .. smd .. '" {')
             print('\t "animations/' .. smd .. '.smd"')
             print('\t activity "ACT_' .. smd .. '" 1')
-            print('\t fps 60')
-            print('\t walkframe 900 LX LY')
+            if setFPS then
+                print('\t fps ' .. setFPS)
+            end
+            if addLoop then
+                print('\t loop')
+            end
+            if walkframes then
+                print('\t walkframe ' .. walkframes .. ' LX LY')
+            end
         print('}')
     end
 end
