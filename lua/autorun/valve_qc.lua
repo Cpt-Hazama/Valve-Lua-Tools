@@ -1,12 +1,16 @@
 Valve = Valve or {}
 
+// lua_run Valve.CreateSequences("phemsee",{Auto = true},"phemsee",true)
+
 local table_insert = table.insert
 local table_remove = table.remove
 
 local string_find = string.find
 local string_lower = string.lower
+local string_upper = string.upper
 local string_sub = string.sub
 local string_Replace = string.Replace
+local string_len = string.len
 --
 --------------------------------------------------------------------------------------------------------------------------------------------
 --[[---------------------------------------------------------
@@ -48,7 +52,7 @@ Valve.GenerateSMDFile = function(fileName,tbl)
             f:Write("\n")
             f:Write('\t "animations/' .. smd .. '.smd"')
             f:Write("\n")
-            f:Write('\t activity "ACT_' .. smd .. '" 1')
+            f:Write('\t activity "ACT_' .. string_upper(smd) .. '" 1')
             if setFPS then
                 f:Write("\n")
                 f:Write('\t fps ' .. setFPS)
@@ -115,6 +119,34 @@ Valve.ReadSMDs = function(fileName)
     return util.JSONToTable(data)
 end
 --------------------------------------------------------------------------------------------------------------------------------------------
+Valve.ReadSMDData = function(dir,smd)
+    local function loadNextConsoleBatch(f)
+        f:Seek(4095)
+    end
+
+    local function loadNextConsoleBatch(f)
+        f:Seek(4095)
+    end
+
+    local f = file.Open("valve/smd/" .. dir .. "/" .. smd .. ".smd","rb","DATA")
+        if f == nil then
+            return
+        end
+        local len = string_len(f:Read())
+        f:Seek(0)
+        print("Parsing SMD file, please be patient ...")
+        while f:Tell() < len do
+            local line = f:Read()
+            if string_find(line,"version") then
+                local version = string_sub(line,string_find(line," ")+1)
+                print("SMD Version: " .. version)
+            end
+            print(line)
+            loadNextConsoleBatch(f)
+        end
+    f:Close()
+end
+--------------------------------------------------------------------------------------------------------------------------------------------
 --[[---------------------------------------------------------
 	Generates and prints a list of $sequences to the console in QC format
 		- smds = The list of animation names or the SMD txt file name
@@ -160,7 +192,7 @@ Valve.CreateSequences = function(smds,defArgs,fileName,findInDir)
             print("\n")
             print('$Sequence "' .. smd .. '" {')
                 print('\t "animations/' .. smd .. '.smd"')
-                print('\t activity "ACT_' .. smd .. '" 1')
+                print('\t activity "ACT_' .. string_upper(smd) .. '" 1')
                 if setFPS then
                     print('\t fps ' .. setFPS)
                 end
