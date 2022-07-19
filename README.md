@@ -2,6 +2,26 @@
 
 A collection of lua based tools to help with creating Source related projects
 
+## VMT Generation Functions
+
+### Valve.SetupVMT(dir,saveDir,list)
+	Generates necessary data to create a VMT file
+		- dir = The directory of the textures
+		- saveDir = The name of the directory where it will save the VMTs in the data/ folder
+        - forceShader = Set the shader type manually, or set to false to automatically detect it
+        - tbValues = A table of values to set in the VMT file
+    Example
+        local tbl = {Translucent = true, NoDecal = true}
+        Valve.SetupVMT("models/cpthazama/mgr/khamsin","khamsin",false,tbl)
+
+### Valve.GenerateVMT(dir,saveDir,list)
+	Generates the VMT file in the form of a txt file (used internally, wouldn't recommend touching this)
+		- dir = The directory of the textures
+		- saveDir = The name of the directory where it will save the VMTs in the data/ folder
+        - list = The table of data to create the VMT file, an internal table really
+    Example
+        Valve.GenerateVMT("models/cpthazama/mgr/khamsin","khamsin",list)
+
 ## $Sequence/SMD Helper Functions
 
 ### Valve.GenerateSMDFile(fileName, tbl)
