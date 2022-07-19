@@ -4,7 +4,7 @@ A collection of lua based tools to help with creating Source related projects
 
 ## VMT Generation Functions
 
-### Valve.SetupVMT(dir,saveDir,list)
+### Valve.SetupVMT(dir,saveDir,forceShader,tbValues)
 	Generates necessary data to create a VMT file
 		- dir = The directory of the textures
 		- saveDir = The name of the directory where it will save the VMTs in the data/ folder
