@@ -70,7 +70,7 @@ Valve.GenerateSMDFile = function(fileName,tbl)
         f:Write('}')
     end
 
-    local f = file.Open("valve/smd/" .. fileName .. ".qc.txt","w","DATA")
+    local f = file.Open("valve/smd/" .. fileName .. ".txt","w","DATA")
         print("Compiling '" .. fileName .. ".txt' ...")
         f:Write("// Compiled using Valve Lua Tools")
         f:Write("\n")
@@ -78,13 +78,13 @@ Valve.GenerateSMDFile = function(fileName,tbl)
             AddSequence(f,v,i == 1)
         end
     f:Close()
-    local f = file.Open("valve/smd/" .. fileName .. ".qc.txt","r","DATA")
+    local f = file.Open("valve/smd/" .. fileName .. ".txt","r","DATA")
         local bytes = f:Size()
         print("sequences     " .. bytes .. " bytes (" .. #tbl .. " seq)")
-        print("Completed '/common/GarrysMod/garrysmod/data/valve/smd/" .. fileName .. ".qc.txt'")
+        print("Completed '/common/GarrysMod/garrysmod/data/valve/smd/" .. fileName .. ".txt'")
     f:Close()
 
-    print('Note: If you do not want to manually add the sequences to the QC file, you can simply copy the file to the QC folder, remove the .TXT extension, and add $include "' .. fileName .. '.qc" to the original QC file.')
+    print('Note: If you do not want to manually add the sequences to the QC file, you can simply copy the file to the QC folder, change the .TXT extension, and add $include "' .. fileName .. '.qc" to the original QC file.')
 end
 --------------------------------------------------------------------------------------------------------------------------------------------
 --[[---------------------------------------------------------
@@ -119,7 +119,7 @@ Valve.ReadSMDs = function(fileName)
     return util.JSONToTable(data)
 end
 --------------------------------------------------------------------------------------------------------------------------------------------
-Valve.ReadSMDData = function(dir,smd)
+Valve.ReadSMDData = function(dir,smd) -- Test function
     local function loadNextConsoleBatch(f)
         f:Seek(4095)
     end
