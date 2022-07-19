@@ -136,11 +136,12 @@ Valve.GenerateVMT = function(dir,saveDir,list)
     file.CreateDir("valve/vmt/" .. saveDir)
 
     local function AddLine(f,parameter,value,dir)
+        // \t is doo-doo, use 	 instead
         f:Write("\n")
         if dir then
-            f:Write('\t "' .. parameter .. '" "' .. dir .. "/" .. value .. '"')
+            f:Write('	"' .. parameter .. '" "' .. dir .. "/" .. value .. '"')
         else
-            f:Write('\t "' .. parameter .. '" "' .. value .. '"')
+            f:Write('	"' .. parameter .. '" "' .. value .. '"')
         end
     end
 
