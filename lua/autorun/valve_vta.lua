@@ -52,7 +52,7 @@ Valve.GenerateVTA = function(smd,saveDir,data)
                 WriteLine(f,tab .. 'flexfile "vta/' .. vta .. '.vta" {',1)
                     WriteLine(f,tab .. tab .. 'defaultflex frame 0',1)
                     for index,flex in pairs(s) do
-                        WriteLine(f,tab .. tab .. 'flex "' .. flex .. '" frame ' .. index -1,1)
+                        WriteLine(f,tab .. tab .. 'flex "' .. flex .. '" frame ' .. index,1)
                     end
                 
                 f:Write("\n")
@@ -71,12 +71,12 @@ Valve.GenerateVTA = function(smd,saveDir,data)
     print("VTA QC file compiled: " .. smd .. ".txt")
 end
 --
--- if SERVER then -- Testing center
-    -- print("-----------------------------------------------------")
-    -- local data = {}
-    -- data["default_upperface"] = {"lEyeLid","rEyeLid","blink","lWink","rWink","eyeDroop","eyeOpen","eyeSerious","eyeSad","eyeAnnoyed"}
-    -- data["default_lowerface"] = {"smile_teeth","pucker","open_small","smile","open_happy","open_confused","neutral","sad","smile_big","annoyed"}
-    -- data["default_brow"] = {"rBrowDown","lBrowUp","rBrowUp","lBrowIn","rBrowIn","browSpread","browUp","browAnger","browUpset","browAnnoyed"}
-    -- data["default_eyes"] = {"eyeShrink","eyeWet","eyeSmall"}
-    -- Valve.GenerateVTA("head_default","makoto",data)
--- end
+if SERVER then -- Testing center
+    print("-----------------------------------------------------")
+    local data = {}
+    data["default_upperface"] = {"lEyeLid","rEyeLid","blink","lWink","rWink","eyeDroop","eyeOpen","eyeSerious","eyeSad","eyeAnnoyed"}
+    data["default_lowerface"] = {"smile_teeth","pucker","open_small","smile","open_happy","open_confused","neutral","sad","smile_big","annoyed"}
+    data["default_brow"] = {"rBrowDown","lBrowUp","rBrowUp","lBrowIn","rBrowIn","browSpread","browUp","browAnger","browUpset","browAnnoyed"}
+    data["default_eyes"] = {"eyeShrink","eyeWet","eyeSmall"}
+    Valve.GenerateVTA("head_default","makoto",data)
+end
