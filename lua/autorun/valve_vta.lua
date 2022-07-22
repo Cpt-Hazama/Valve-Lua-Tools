@@ -54,13 +54,14 @@ Valve.GenerateVTA = function(smd,saveDir,data)
                     for index,flex in pairs(s) do
                         WriteLine(f,tab .. tab .. 'flex "' .. flex .. '" frame ' .. index,1)
                     end
+                WriteLine(f,tab .. '}',1)
                 
                 f:Write("\n")
                 local flexList = table_concat(s, " ")
                 flexList = string_gsub(flexList, " ", "\" \"")
                 flexList = "\"" .. flexList .. "\""
 
-                WriteLine(f,tab .. 'flexcontroller  ' .. vta .. ' ' .. flexList,1)
+                WriteLine(f,tab .. 'flexcontroller ' .. vta .. ' ' .. flexList,1)
                 for _,flex in pairs(s) do
                     WriteLine(f,tab .. tab .. '%' .. flex .. " = " .. flex,1)
                 end
