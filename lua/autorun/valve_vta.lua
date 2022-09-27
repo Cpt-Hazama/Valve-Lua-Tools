@@ -23,7 +23,7 @@ local string_endsWith = string.EndsWith
         // data[VTA_FILENAME] = {FLEX_FRAME_NAME}
         data["default_upperface"] = {"lEyeLid","rEyeLid","blink","lWink","rWink","eyeDroop","eyeOpen","eyeSerious","eyeSad","eyeAnnoyed"}
         data["default_lowerface"] = {"smile_teeth","pucker","open_small","smile","open_happy","open_confused","neutral","sad","smile_big","annoyed"}
-        data["default_brow"] = {"rBrowDown","lBrowUp","rBrowUp","lBrowIn","rBrowIn","browSpread","browUp","browAnger","browUpset","browAnnoyed"}
+        data["default_brow"] = {"lBrowDown","lBrowUp","lBrowUp","lBrowIn","lBrowIn","browSpread","browUp","browAnger","browUpset","browAnnoyed"}
         data["default_eyes"] = {"eyeShrink","eyeWet","eyeSmall"}
         Valve.GenerateVTA("default_face","makoto",data)
 -----------------------------------------------------------]]
@@ -72,12 +72,12 @@ Valve.GenerateVTA = function(smd,saveDir,data)
     print("VTA QC file compiled: " .. smd .. ".txt")
 end
 --
-if SERVER then -- Testing center
-    print("-----------------------------------------------------")
-    local data = {}
-    data["default_upperface"] = {"lEyeLid","rEyeLid","blink","lWink","rWink","eyeDroop","eyeOpen","eyeSerious","eyeSad","eyeAnnoyed"}
-    data["default_lowerface"] = {"smile_teeth","pucker","open_small","smile","open_happy","open_confused","neutral","sad","smile_big","annoyed"}
-    data["default_brow"] = {"rBrowDown","lBrowUp","rBrowUp","lBrowIn","rBrowIn","browSpread","browUp","browAnger","browUpset","browAnnoyed"}
-    data["default_eyes"] = {"eyeShrink","eyeWet","eyeSmall"}
-    Valve.GenerateVTA("head_default","makoto",data)
-end
+-- if SERVER then -- Testing center
+--     print("-----------------------------------------------------")
+--     local data = {}
+--     data["default_upperface"] = {"blink","lEyeLid","rEyeLid","eyeHappy","lWink","rWink","eyeConfused","eyeShocked","eyeUpset","eyeSad"}
+--     data["default_lowerface"] = {"mouthOpen","mouthSmileTeeth","mouthOpenSmall","mouthOpenO","mouthSmile","mouthSmileOpen","mouthConfused","mouthShocked","mouthUpset","mouthSmileGrin"}
+--     data["default_brow"] = {"lBrowDown","rBrowDown","lBrowUp","rBrowUp","lBrowIn","rBrowIn","browBend","browShock","browUpset","browSad"}
+--     data["default_eyes"] = {"eyeShrink","eyeWet","eyeSmall"}
+--     Valve.GenerateVTA("head_default","makoto",data)
+-- end

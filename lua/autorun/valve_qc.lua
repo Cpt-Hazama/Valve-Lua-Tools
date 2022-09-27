@@ -40,7 +40,7 @@ Valve.GenerateSMDFile = function(fileName,tbl)
     local function AddSequence(f,smdDat,isFirst)
         local smd = smdDat.smd
         local addLoop = smdDat.loop or false
-        local setFPS = smdDat.fps or 30
+        local setFPS = smdDat.fps or false
         local walkframes = smdDat.walkframes or false
 
         print("SMD MODEL " .. smd .. ".smd")
@@ -50,20 +50,20 @@ Valve.GenerateSMDFile = function(fileName,tbl)
         f:Write("\n")
         f:Write('$Sequence "' .. smd .. '" {')
             f:Write("\n")
-            f:Write('\t "animations/' .. smd .. '.smd"')
+            f:Write('	"animations/' .. smd .. '.smd"')
             f:Write("\n")
-            f:Write('\t activity "ACT_' .. string_upper(smd) .. '" 1')
+            f:Write('	activity "ACT_' .. string_upper(smd) .. '" 1')
             if setFPS then
                 f:Write("\n")
-                f:Write('\t fps ' .. setFPS)
+                f:Write('	fps ' .. setFPS)
             end
             if addLoop then
                 f:Write("\n")
-                f:Write('\t loop')
+                f:Write('	loop')
             end
             if walkframes then
                 f:Write("\n")
-                f:Write('\t walkframe ' .. walkframes .. ' LX LY')
+                f:Write('	walkframe ' .. walkframes .. ' LX LY')
                 print("@" .. smd .. " : 0 - " .. walkframes .. "")
             end
             f:Write("\n")
@@ -174,10 +174,10 @@ Valve.CreateSequences = function(smds,defArgs,fileName,findInDir)
     local list = {}
     local auto = defArgs.Automatic or false
     local addLoop = defArgs.Loop or false
-    local setFPS = defArgs.FPS or 30
+    local setFPS = defArgs.FPS or false
     local walkframes = defArgs.WalkFrames or false
     for _,smd in pairs(smds) do
-        if string_find(smd,".smd") then
+        if string_find(string_lower(smd),".smd") then
             smd = string_sub(smd,1,-5)
         end
         if auto then
@@ -191,16 +191,16 @@ Valve.CreateSequences = function(smds,defArgs,fileName,findInDir)
         if !fileName then
             print("\n")
             print('$Sequence "' .. smd .. '" {')
-                print('\t "animations/' .. smd .. '.smd"')
-                print('\t activity "ACT_' .. string_upper(smd) .. '" 1')
+                print('	"animations/' .. smd .. '.smd"')
+                print('	activity "ACT_' .. string_upper(smd) .. '" 1')
                 if setFPS then
-                    print('\t fps ' .. setFPS)
+                    print('	fps ' .. setFPS)
                 end
                 if addLoop then
-                    print('\t loop')
+                    print('	loop')
                 end
                 if walkframes then
-                    print('\t walkframe ' .. walkframes .. ' LX LY')
+                    print('	walkframe ' .. walkframes .. ' LX LY')
                 end
             print('}')
         end

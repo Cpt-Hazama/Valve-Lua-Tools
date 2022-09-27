@@ -48,6 +48,12 @@ Valve.SetupVMT = function(dir,saveDir,forceShader,tbValues)
             sortList[def_vtf].Specular = vtf
             -- print("Found specular map: " .. vtf)
             isSubVTF = true
+        elseif string_endsWith(vtf,"_exponent") then
+            local def_vtf = string_sub(vtf,1,-10)
+            sortList[def_vtf] = sortList[def_vtf] or {}
+            sortList[def_vtf].Exponent = vtf
+            -- print("Found exponent map: " .. vtf)
+            isSubVTF = true
         elseif string_endsWith(vtf,"_mrao") then
             local def_vtf = string_sub(vtf,1,-6)
             sortList[def_vtf] = sortList[def_vtf] or {}
@@ -69,6 +75,7 @@ Valve.SetupVMT = function(dir,saveDir,forceShader,tbValues)
         end
     end
     
+    local gameID = nil
     for vmt,vtf in pairs(sortList) do
         local shaderType = "VertexLitGeneric"
         if !forceShader then
@@ -86,6 +93,7 @@ Valve.SetupVMT = function(dir,saveDir,forceShader,tbValues)
             Specular = vtf.Specular,
             Illuminate = vtf.Illuminate,
             MRAO = vtf.MRAO,
+            Exponent = vtf.Exponent,
         }
         if tbValues then
             if tbValues.Translucent then
@@ -112,6 +120,9 @@ Valve.SetupVMT = function(dir,saveDir,forceShader,tbValues)
             if tbValues.ENVMap then
                 list[listID].SurfaceProp = tbValues.ENVMap or "env_cubemap"
             end
+            if tbValues.GameID then
+                gameID = tbValues.GameID
+            end
         end
         if shaderType == "PBR" then
             list[listID].Model = 1
@@ -119,7 +130,7 @@ Valve.SetupVMT = function(dir,saveDir,forceShader,tbValues)
     end
 
     if #list > 0 then
-        Valve.GenerateVMT(dir,saveDir,list)
+        Valve.GenerateVMT(dir,saveDir,list,gameID)
     end
 end
 --------------------------------------------------------------------------------------------------------------------------------------------
@@ -128,10 +139,14 @@ end
 		- dir = The directory of the textures
 		- saveDir = The name of the directory where it will save the VMTs in the data/ folder
         - list = The table of data to create the VMT file, an internal table really
+        - gameID = If a game ID is set and a logic is created for the said game, the VMT will be generated in a unique way that's built for that game
+
+        Current gameID parameters:
+            - "BW"
     Example
         Valve.GenerateVMT("models/cpthazama/mgr/khamsin","khamsin",list)
 -----------------------------------------------------------]]
-Valve.GenerateVMT = function(dir,saveDir,list)
+Valve.GenerateVMT = function(dir,saveDir,list,gameID)
     file.CreateDir("valve/vmt")
     file.CreateDir("valve/vmt/" .. saveDir)
 
@@ -145,64 +160,112 @@ Valve.GenerateVMT = function(dir,saveDir,list)
         end
     end
 
-    for _,v in pairs(list) do
-        file.Write("valve/smd/" .. saveDir .. "/" .. v.Diffuse .. ".txt","")
-        print("Compiling " .. v.Shader .. " VMT file: " .. v.Diffuse .. ".txt")
+    if gameID == nil then
+        for _,v in pairs(list) do
+            file.Write("valve/smd/" .. saveDir .. "/" .. v.Diffuse .. ".txt","")
+            print("Compiling " .. v.Shader .. " VMT file: " .. v.Diffuse .. ".txt")
 
-        local f = file.Open("valve/vmt/" .. saveDir .. "/" .. v.Diffuse .. ".vmt","w","DATA")
-            f:Write('"' .. v.Shader .. '"')
-            f:Write("\n")
-            f:Write('{')
-                AddLine(f,"$basetexture",v.Diffuse,dir)
-                AddLine(f,"$bumpmap",v.Normal or "dev/flat",v.Normal && dir or false)
-                if v.Shader == "PBR" then
-                    if v.MRAO then
-                        AddLine(f,"$mraotexture",v.MRAO,dir)
-                    end
-                    if v.Specular then
-                        AddLine(f,"$speculartexture",v.Specular,dir)
-                    end
-                end
-                if v.Illuminate then
+            local f = file.Open("valve/vmt/" .. saveDir .. "/" .. v.Diffuse .. ".vmt","w","DATA")
+                f:Write('"' .. v.Shader .. '"')
+                f:Write("\n")
+                f:Write('{')
+                    AddLine(f,"$basetexture",v.Diffuse,dir)
+                    AddLine(f,"$bumpmap",v.Normal or "dev/flat",v.Normal && dir or false)
                     if v.Shader == "PBR" then
-                        AddLine(f,"$emissiontexture",v.Illuminate,dir)
-                    else
-                        AddLine(f,"$selfillum",1)
-                        AddLine(f,"$selfillummask",v.Illuminate,dir)
+                        if v.MRAO then
+                            AddLine(f,"$mraotexture",v.MRAO,dir)
+                        end
+                        if v.Specular then
+                            AddLine(f,"$speculartexture",v.Specular,dir)
+                        end
                     end
-                end
-                -- f:Write("\n")
-                if v.NoCull then
+                    if v.Illuminate then
+                        if v.Shader == "PBR" then
+                            AddLine(f,"$emissiontexture",v.Illuminate,dir)
+                        else
+                            AddLine(f,"$selfillum",1)
+                            AddLine(f,"$selfillummask",v.Illuminate,dir)
+                        end
+                    end
+                    if v.Shader == "VertexLitGeneric" then
+                        if v.Exponent then
+                            AddLine(f,"$phongexponenttexture",v.Exponent,dir)
+                        end
+                    end
+                    -- f:Write("\n")
+                    if v.NoCull then
+                        AddLine(f,"$nocull",1)
+                    end
+                    if v.NoDecal then
+                        AddLine(f,"$nodecal",1)
+                    end
+                    if v.Model then
+                        AddLine(f,"$model",1)
+                    end
+                    if v.Additive then
+                        AddLine(f,"$additive",1)
+                    end
+                    -- f:Write("\n")
+                    if v.Translucent then
+                        AddLine(f,"$translucent",1)
+                    end
+                    if v.AlphaTest then
+                        AddLine(f,"$alphatest",1)
+                    end
+                    -- f:Write("\n")
+                    if v.SurfaceProp then
+                        AddLine(f,"$surfaceprop",v.SurfaceProp)
+                    end
+                    -- f:Write("\n")
+                    if v.ENVMap then
+                        AddLine(f,"$envmap",v.ENVMap)
+                    end
+                f:Write("\n")
+                f:Write('}')
+            f:Close()
+            print("VMT file compiled: " .. v.Diffuse .. ".txt")
+        end
+    elseif gameID == "BW" then
+        for _,v in pairs(list) do
+            file.Write("valve/smd/" .. saveDir .. "/" .. string.upper(v.Diffuse) .. ".txt","")
+            print("Compiling " .. v.Shader .. " VMT file: " .. v.Diffuse .. ".txt")
+
+            local f = file.Open("valve/vmt/" .. saveDir .. "/" .. v.Diffuse .. ".vmt","w","DATA")
+                f:Write('"' .. v.Shader .. '"')
+                f:Write("\n")
+                f:Write('{')
+                    AddLine(f,"$basetexture",v.Diffuse,dir)
+                    AddLine(f,"$bumpmap",v.Normal or "dev/flat",v.Normal && dir or false)
+                    AddLine(f,"$phongexponenttexture",v.Exponent or "vj_base/exponent",dir)
+                    if v.Illuminate then
+                        f:Write("\n")
+                        AddLine(f,"$detail",v.Illuminate,dir)
+                        AddLine(f,"$detailscale",1)
+                        AddLine(f,"$detailblendfactor",1)
+                        AddLine(f,"$detailblendmode",5)
+                    end
+                    f:Write("\n")
                     AddLine(f,"$nocull",1)
-                end
-                if v.NoDecal then
                     AddLine(f,"$nodecal",1)
-                end
-                if v.Model then
                     AddLine(f,"$model",1)
-                end
-                if v.Additive then
-                    AddLine(f,"$additive",1)
-                end
-                -- f:Write("\n")
-                if v.Translucent then
-                    AddLine(f,"$translucent",1)
-                end
-                if v.AlphaTest then
-                    AddLine(f,"$alphatest",1)
-                end
-                -- f:Write("\n")
-                if v.SurfaceProp then
-                    AddLine(f,"$surfaceprop",v.SurfaceProp)
-                end
-                -- f:Write("\n")
-                if v.ENVMap then
-                    AddLine(f,"$envmap",v.ENVMap)
-                end
-            f:Write("\n")
-            f:Write('}')
-        f:Close()
-        print("VMT file compiled: " .. v.Diffuse .. ".txt")
+                    f:Write("\n")
+                    f:Write('	// "$alphatest" "1"')
+                    f:Write("\n")
+                    AddLine(f,"$ambientocclusion",1)
+                    AddLine(f,"$phong",1)
+                    AddLine(f,"$phongboost",1)
+                    AddLine(f,"$phongfresnelranges","[1 1 1]")
+                    AddLine(f,"$phongalbedotint",1)
+                    f:Write("\n")
+                    AddLine(f,"$envmap","models/cpthazama/battalion_wars_2/vwfrefmap2")
+                    AddLine(f,"$envmapfresnel",1)
+                    AddLine(f,"$envmaptint","[0.01 0.01 0.01]")
+                    AddLine(f,"$normalmapalphaenvmapmask",1)
+                f:Write("\n")
+                f:Write('}')
+            f:Close()
+            print("VMT file compiled: " .. v.Diffuse .. ".txt")
+        end
     end
 end
 --
