@@ -11,6 +11,16 @@ local string_upper = string.upper
 local string_sub = string.sub
 local string_Replace = string.Replace
 local string_len = string.len
+
+local function Valve_HasValue(tbl, val)
+	if !istable(tbl) then return false end
+	for x = 1, #tbl do
+		if tbl[x] == val then
+			return true
+		end
+	end
+	return false
+end
 --
 --------------------------------------------------------------------------------------------------------------------------------------------
 --[[---------------------------------------------------------
@@ -34,7 +44,7 @@ local string_len = string.len
         }
         Valve.GenerateSMDFile( "zombie", tbl )
 -----------------------------------------------------------]]
-Valve.GenerateSMDFile = function(fileName,tbl)
+Valve.GenerateSMDFile = function(fileName,tbl,gameID,exData)
     file.CreateDir("valve/smd")
 
     local function AddSequence(f,smdDat,isFirst)
@@ -63,21 +73,88 @@ Valve.GenerateSMDFile = function(fileName,tbl)
             end
             if walkframes then
                 f:Write("\n")
-                f:Write('	walkframe ' .. walkframes .. ' LX LY')
-                print("@" .. smd .. " : 0 - " .. walkframes .. "")
+                if walkframes == true then
+                    f:Write('	LX LY')
+                    print("@" .. smd .. " : 0 - EOF")
+                else
+                    f:Write('	walkframe ' .. walkframes .. ' LX LY')
+                    print("@" .. smd .. " : 0 - " .. walkframes .. "")
+                end
             end
             f:Write("\n")
         f:Write('}')
     end
 
-    local f = file.Open("valve/smd/" .. fileName .. ".txt","w","DATA")
-        print("Compiling '" .. fileName .. ".txt' ...")
-        f:Write("// Compiled using Valve Lua Tools")
-        f:Write("\n")
-        for i,v in pairs(tbl) do
-            AddSequence(f,v,i == 1)
+    if gameID == nil then
+        local f = file.Open("valve/smd/" .. fileName .. ".txt","w","DATA")
+            print("Compiling '" .. fileName .. ".txt' ...")
+            f:Write("// Compiled using Valve Lua Tools")
+            f:Write("\n")
+            for i,v in pairs(tbl) do
+                AddSequence(f,v,i == 1)
+            end
+        f:Close()
+    elseif gameID == "Genshin" then
+        local function AddSequence_Unique(f,smdDat,isFirst,hasPhys)
+            local smd = smdDat.smd
+            local addLoop = smdDat.loop or false
+            local setFPS = smdDat.fps or false
+            local walkframes = smdDat.walkframes or false
+
+            print("SMD MODEL " .. smd .. ".smd")
+            if !isFirst then
+                f:Write("\n")
+            end
+            if hasPhys then
+                f:Write("\n")
+                f:Write('$Sequence "a_' .. smd .. '" {')
+                    f:Write("\n")
+                    f:Write('	"animations_phys/' .. smd .. '.smd"')
+                    f:Write("\n")
+                    f:Write('	weightlist phys_params')
+                    f:Write("\n")
+                f:Write('}')
+                f:Write("\n")
+            end
+            f:Write("\n")
+            f:Write('$Sequence "' .. smd .. '" {')
+                f:Write("\n")
+                f:Write('	"animations/' .. smd .. '.smd"')
+                if hasPhys then
+                    f:Write("\n")
+                    f:Write('	addlayer "a_' .. smd .. '"')
+                end
+                if setFPS then
+                    f:Write("\n")
+                    f:Write('	fps ' .. setFPS)
+                end
+                if addLoop then
+                    f:Write("\n")
+                    f:Write('	loop')
+                end
+                if walkframes then
+                    f:Write("\n")
+                    if walkframes == true then
+                        f:Write('	LX LY')
+                        print("@" .. smd .. " : 0 - EOF")
+                    else
+                        f:Write('	walkframe ' .. walkframes .. ' LX LY')
+                        print("@" .. smd .. " : 0 - " .. walkframes .. "")
+                    end
+                end
+                f:Write("\n")
+            f:Write('}')
         end
-    f:Close()
+
+        local f = file.Open("valve/smd/" .. fileName .. ".txt","w","DATA")
+            print("Compiling '" .. fileName .. ".txt' ...")
+            f:Write("// Compiled using Valve Lua Tools")
+            f:Write("\n")
+            for i,v in pairs(tbl) do
+                AddSequence_Unique(f,v,i == 1,exData == true or Valve_HasValue(exData,v.smd))
+            end
+        f:Close()
+    end
     local f = file.Open("valve/smd/" .. fileName .. ".txt","r","DATA")
         local bytes = f:Size()
         print("sequences     " .. bytes .. " bytes (" .. #tbl .. " seq)")
@@ -159,7 +236,7 @@ end
         Valve.CreateSequences( "anims", {FPS = 60, WalkFrames = 900})
         Valve.CreateSequences( tbl )
 -----------------------------------------------------------]]
-Valve.CreateSequences = function(smds,defArgs,fileName,findInDir)
+Valve.CreateSequences = function(smds,defArgs,fileName,findInDir,exData)
     if type(smds) != "table" then
         if findInDir then
             smds = file.Find("valve/smd/" .. smds .. "/*.smd","DATA")
@@ -171,6 +248,7 @@ Valve.CreateSequences = function(smds,defArgs,fileName,findInDir)
         print("No SMD files found ...")
         return
     end
+    local gameID = defArgs.GameID or nil
     local list = {}
     local auto = defArgs.Automatic or false
     local addLoop = defArgs.Loop or false
@@ -185,7 +263,8 @@ Valve.CreateSequences = function(smds,defArgs,fileName,findInDir)
             if string_find(smdName,"idle") or string_find(smdName,"wait") or string_find(smdName,"walk") or string_find(smdName,"run") or string_find(smdName,"all") or string_find(smdName,"glide") or string_find(smdName,"loop") then
                 addLoop = true
             elseif string_find(smdName,"walk") or string_find(smdName,"run") or string_find(smdName,"attack") or string_find(smdName,"range") or string_find(smdName,"jump") or string_find(smdName,"land") then
-                walkframes = 900
+                walkframes = true
+                -- walkframes = 900
             end
         end
         if !fileName then
@@ -199,7 +278,7 @@ Valve.CreateSequences = function(smds,defArgs,fileName,findInDir)
                 if addLoop then
                     print('	loop')
                 end
-                if walkframes then
+                if walkframes && walkframes != true then
                     print('	walkframe ' .. walkframes .. ' LX LY')
                 end
             print('}')
@@ -212,6 +291,6 @@ Valve.CreateSequences = function(smds,defArgs,fileName,findInDir)
         }
     end
     if fileName then
-        Valve.GenerateSMDFile(fileName,list)
+        Valve.GenerateSMDFile(fileName,list,gameID,exData)
     end
 end
