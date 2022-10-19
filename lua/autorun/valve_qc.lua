@@ -120,6 +120,8 @@ Valve.GenerateSMDFile = function(fileName,tbl,gameID,exData)
             f:Write('$Sequence "' .. smd .. '" {')
                 f:Write("\n")
                 f:Write('	"animations/' .. smd .. '.smd"')
+                f:Write("\n")
+                f:Write('	activity "ACT_' .. string_upper(smd) .. '" 1')
                 if hasPhys then
                     f:Write("\n")
                     f:Write('	addlayer "a_' .. smd .. '"')
