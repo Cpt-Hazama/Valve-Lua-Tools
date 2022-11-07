@@ -35,8 +35,11 @@ Valve.SetupVMT = function(dir,saveDir,forceShader,tbValues)
         if string_find(vtf,".vtf") then
             vtf = string_sub(vtf,1,-5)
         end
+        if string_find(vtf,"_diffuse") then
+            vtf = string_sub(vtf,1,-9)
+        end
 
-        if string_endsWith(vtf,"_n") then
+        if string_endsWith(vtf,"_n") or string_endsWith(vtf,"_normal") then
             local def_vtf = string_sub(vtf,1,-3)
             sortList[def_vtf] = sortList[def_vtf] or {}
             sortList[def_vtf].Normal = vtf
@@ -60,7 +63,7 @@ Valve.SetupVMT = function(dir,saveDir,forceShader,tbValues)
             sortList[def_vtf].MRAO = vtf
             -- print("Found MRAO map: " .. vtf)
             isSubVTF = true
-        elseif string_endsWith(vtf,"_e") or string_endsWith(vtf,"_g") or string_endsWith(vtf,"_i") then
+        elseif string_endsWith(vtf,"_e") or string_endsWith(vtf,"_g") or string_endsWith(vtf,"_i") or string_endsWith(vtf,"_glow") then
             local def_vtf = string_sub(vtf,1,-3)
             sortList[def_vtf] = sortList[def_vtf] or {}
             sortList[def_vtf].Illuminate = vtf
@@ -143,6 +146,7 @@ end
 
         Current gameID parameters:
             - "BW"
+            - "Genshin"
     Example
         Valve.GenerateVMT("models/cpthazama/mgr/khamsin","khamsin",list)
 -----------------------------------------------------------]]
@@ -261,6 +265,41 @@ Valve.GenerateVMT = function(dir,saveDir,list,gameID)
                     AddLine(f,"$envmapfresnel",1)
                     AddLine(f,"$envmaptint","[0.01 0.01 0.01]")
                     AddLine(f,"$normalmapalphaenvmapmask",1)
+                f:Write("\n")
+                f:Write('}')
+            f:Close()
+            print("VMT file compiled: " .. v.Diffuse .. ".txt")
+        end
+    elseif gameID == "Genshin" then
+        for _,v in pairs(list) do
+            file.Write("valve/smd/" .. saveDir .. "/" .. string.upper(v.Diffuse) .. ".txt","")
+            print("Compiling " .. v.Shader .. " VMT file: " .. v.Diffuse .. ".txt")
+
+            local f = file.Open("valve/vmt/" .. saveDir .. "/" .. v.Diffuse .. ".vmt","w","DATA")
+                f:Write('"VertexlitGeneric"')
+                f:Write("\n")
+                f:Write('{')
+                    AddLine(f,"$basetexture",v.Diffuse,dir)
+                    AddLine(f,"$bumpmap",v.Normal or "models/cpthazama/genshin_impact/flat",v.Normal && dir or false)
+                    AddLine(f,"$phongexponenttexture",v.Exponent or "models/cpthazama/genshin_impact/exponent",dir)
+                    f:Write("\n")
+                    AddLine(f,"$nocull",1)
+                    AddLine(f,"$nodecal",1)
+                    if v.Illuminate then
+                        f:Write("\n")
+                        AddLine(f,"$selfillum",1)
+                        AddLine(f,"$selfillummask",v.Illuminate,dir)
+                        AddLine(f,"$selfillumtint","[1 1 1]")
+                    end
+                    f:Write("\n")
+                    AddLine(f,"$ambientocclusion",1)
+                    AddLine(f,"$phong",1)
+                    AddLine(f,"$phongboost",25)
+                    AddLine(f,"$phongfresnelranges","[0.035 0.2 1]")
+                    AddLine(f,"$phongalbedotint",1)
+                    AddLine(f,"$normalmapalphaenvmapmask",1)
+                    f:Write("\n")
+                    AddLine(f,"$lightwarptexture","models/cpthazama/genshin_impact/shader6")
                 f:Write("\n")
                 f:Write('}')
             f:Close()

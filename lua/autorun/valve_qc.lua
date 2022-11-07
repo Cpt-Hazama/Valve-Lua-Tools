@@ -11,6 +11,7 @@ local string_upper = string.upper
 local string_sub = string.sub
 local string_Replace = string.Replace
 local string_len = string.len
+local string_Explode = string.Explode
 
 local function Valve_HasValue(tbl, val)
 	if !istable(tbl) then return false end
@@ -107,19 +108,73 @@ Valve.GenerateSMDFile = function(fileName,tbl,gameID,exData)
             end
 
             local totalFrames = 0
+            local finalFrame = 0
             local SMD_Data = file.Open("data/valve/smd/" .. fileName .. "/" .. smd .. ".smd","rb","GAME")
                 local data = SMD_Data:Read(SMD_Data:Size())
-                local animationData = string.Explode("\n",data)
-                for k,v in pairs(animationData) do
-                    if string_find(v,"time") then
-                        local curFrame = tonumber(string_sub(v,6))
-                        if curFrame > totalFrames then
-                            totalFrames = curFrame
+                local animationData = string_Explode("\n",data)
+                local boneData = {}
+                for fileLineNumber,lineData in pairs(animationData) do
+                    if string_find(lineData,"time") then
+                        local time = string_Explode(" ",lineData)
+                        totalFrames = totalFrames + 1
+                        boneData[totalFrames] = {}
+
+                        for i = fileLineNumber + 1, #animationData do
+                            if string_find(animationData[i],"time") or string_find(animationData[i],"end") then break end
+                            local boneInfo = string_Explode(" ",animationData[i])
+                            boneData[totalFrames][boneInfo[3]] = {
+                                Pos = Vector(boneInfo[4],boneInfo[5],boneInfo[6]),
+                                Ang = Angle(boneInfo[7],boneInfo[8],boneInfo[9])
+                            }
                         end
                     end
                 end
             SMD_Data:Close()
-            local cutFrames = totalFrames > 10 && math.Round(totalFrames /2) -1 or totalFrames
+
+            local duplicateFrame = nil
+            local lastFrameData = nil
+            local totalDuplicatesInARow = 0
+            local goalTolerance = 4
+            
+            for frameNumber,frameData in SortedPairs(boneData) do
+                if lastFrameData then
+                    local isDuplicate = nil
+                    for boneName,boneData in SortedPairs(frameData) do
+                        -- print("-------------------------------------------------------------------------------")
+                        -- print("Frame " .. frameNumber .. " | Checking bone: " .. boneName,boneData)
+                        if lastFrameData[boneName] then
+                            if lastFrameData[boneName].Pos != boneData.Pos or lastFrameData[boneName].Ang != boneData.Ang then
+                                isDuplicate = false
+                                -- print("Frame " .. frameNumber .. " | Bone " .. boneName .. " is different from the last frame!")
+                                -- print("Frame " .. frameNumber .. " | Last frame bone data: " .. tostring(lastFrameData[boneName]))
+                                -- print("Frame " .. frameNumber .. " | Current frame bone data: " .. tostring(boneData))
+                                break
+                            else
+                                -- print("Frame " .. frameNumber .. " | Bone " .. boneName .. " is the same as the last frame's bone!")
+                                -- print("Frame " .. frameNumber .. " | Last frame bone data: " .. tostring(lastFrameData[boneName].Pos))
+                                -- print("Frame " .. frameNumber .. " | Current frame bone data: " .. tostring(boneData.Pos))
+                                isDuplicate = true
+                            end
+                        -- else
+                        -- 	isDuplicate = false
+                        -- 	break
+                        end
+                    end
+                    if isDuplicate then
+                        -- print("Found duplicate frame data at frame "..frameNumber)
+                        totalDuplicatesInARow = totalDuplicatesInARow + 1
+                        if totalDuplicatesInARow >= goalTolerance then
+                            duplicateFrame = frameNumber -goalTolerance
+                            break
+                        end
+                    else
+                        totalDuplicatesInARow = 0
+                    end
+                end
+                lastFrameData = frameData
+            end
+            local cutFrames = duplicateFrame or totalFrames
+            -- local cutFrames = totalFrames > 10 && math.Round(totalFrames *0.4823151125401929) or totalFrames
 
             if hasPhys then
                 f:Write("\n")
