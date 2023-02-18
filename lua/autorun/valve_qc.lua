@@ -1,7 +1,5 @@
 Valve = Valve or {}
 
-// lua_run Valve.CreateSequences("phemsee",{Auto = true},"phemsee",true)
-
 local table_insert = table.insert
 local table_remove = table.remove
 
@@ -48,11 +46,72 @@ end
 Valve.GenerateSMDFile = function(fileName,tbl,gameID,exData)
     file.CreateDir("valve/smd")
 
+    local function GetRealFrameData(f,smd)
+        local totalFrames = 0
+        local finalFrame = 0
+        local SMD_Data = file.Open("data/valve/smd/" .. fileName .. "/" .. smd .. ".smd","rb","GAME")
+            local data = SMD_Data:Read(SMD_Data:Size())
+            local animationData = string_Explode("\n",data)
+            local boneData = {}
+            for fileLineNumber,lineData in pairs(animationData) do
+                if string_find(lineData,"time") then
+                    local time = string_Explode(" ",lineData)
+                    totalFrames = totalFrames + 1
+                    boneData[totalFrames] = {}
+
+                    for i = fileLineNumber + 1, #animationData do
+                        if string_find(animationData[i],"time") or string_find(animationData[i],"end") then break end
+                        local boneInfo = string_Explode(" ",animationData[i])
+                        boneData[totalFrames][boneInfo[3]] = {
+                            Pos = Vector(boneInfo[4],boneInfo[5],boneInfo[6]),
+                            Ang = Angle(boneInfo[7],boneInfo[8],boneInfo[9])
+                        }
+                    end
+                end
+            end
+        SMD_Data:Close()
+
+        local duplicateFrame = nil
+        local lastFrameData = nil
+        local totalDuplicatesInARow = 0
+        local goalTolerance = 4
+        for frameNumber,frameData in SortedPairs(boneData) do
+            if lastFrameData then
+                local isDuplicate = nil
+                for boneName,boneData in SortedPairs(frameData) do
+                    if lastFrameData[boneName] then
+                        if lastFrameData[boneName].Pos != boneData.Pos or lastFrameData[boneName].Ang != boneData.Ang then
+                            isDuplicate = false
+                            break
+                        else
+                            isDuplicate = true
+                        end
+                    end
+                end
+                if isDuplicate then
+                    totalDuplicatesInARow = totalDuplicatesInARow + 1
+                    if totalDuplicatesInARow >= goalTolerance then
+                        duplicateFrame = frameNumber -goalTolerance
+                        break
+                    end
+                else
+                    totalDuplicatesInARow = 0
+                end
+            end
+            lastFrameData = frameData
+        end
+
+        return totalFrames, duplicateFrame
+    end
+
     local function AddSequence(f,smdDat,isFirst)
         local smd = smdDat.smd
-        local addLoop = smdDat.loop or false
+        local smdName = string_lower(smd)
+        local addLoop = string_find(smdName,"idle") or string_find(smdName,"wait") or string_find(smdName,"walk") or string_find(smdName,"run") or string_find(smdName,"glide") or string_find(smdName,"loop")
         local setFPS = smdDat.fps or false
         local walkframes = smdDat.walkframes or false
+        local checkframes = smdDat.checkframes or false
+        local totalFrames, realLastFrame = GetRealFrameData(f,smd)
 
         print("SMD MODEL " .. smd .. ".smd")
         if !isFirst then
@@ -72,21 +131,51 @@ Valve.GenerateSMDFile = function(fileName,tbl,gameID,exData)
                 f:Write("\n")
                 f:Write('	loop')
             end
-            if walkframes then
-                f:Write("\n")
-                if walkframes == true then
-                    f:Write('	LX LY')
-                    print("@" .. smd .. " : 0 - EOF")
-                else
-                    f:Write('	walkframe ' .. walkframes .. ' LX LY')
-                    print("@" .. smd .. " : 0 - " .. walkframes .. "")
+            if checkframes then
+                if realLastFrame then
+                    f:Write("\n")
+                    f:Write('	frames 0 ' .. realLastFrame)
+                    totalFrames = realLastFrame
+                end
+                if walkframes then
+                    if walkframes == true then
+                        local calcIncrease = totalFrames /16
+                        for i = 1, 16 do
+                            local calculateFrame = math.Round(calcIncrease * i)
+                            if calculateFrame > totalFrames then
+                                calculateFrame = totalFrames
+                            end
+                            f:Write("\n")
+                            f:Write('	walkframe ' .. calculateFrame .. ' LX LY')
+                        end
+                        -- f:Write('	walkframe ' .. (realLastFrame or totalFrames) .. ' LX LY')
+                        print("@" .. smd .. " : 0 - " .. (realLastFrame or totalFrames) .. "")
+                    else
+                        f:Write("\n")
+                        f:Write('	walkframe ' .. (realLastFrame or totalFrames) .. ' LX LY')
+                        print("@" .. smd .. " : 0 - " .. (realLastFrame or totalFrames) .. "")
+                    end
+                end
+            else
+                if walkframes then
+                    local calcIncrease = totalFrames /16
+                    for i = 1, 16 do
+                        local calculateFrame = math.Round(calcIncrease * i)
+                        if calculateFrame > totalFrames then
+                            calculateFrame = totalFrames
+                        end
+                        f:Write("\n")
+                        f:Write('	walkframe ' .. calculateFrame .. ' LX LY')
+                    end
+                    -- f:Write('	walkframe ' .. totalFrames .. ' LX LY')
+                    print("@" .. smd .. " : 0 - " .. totalFrames .. "")
                 end
             end
             f:Write("\n")
         f:Write('}')
     end
 
-    if gameID == nil then
+    local function defaultExecute()
         local f = file.Open("valve/smd/" .. fileName .. ".txt","w","DATA")
             print("Compiling '" .. fileName .. ".txt' ...")
             f:Write("// Compiled using Valve Lua Tools")
@@ -95,86 +184,25 @@ Valve.GenerateSMDFile = function(fileName,tbl,gameID,exData)
                 AddSequence(f,v,i == 1)
             end
         f:Close()
+    end
+
+    if gameID == nil then
+        defaultExecute()
     elseif gameID == "Genshin" then
         local function AddSequence_Unique(f,smdDat,isFirst,hasPhys,fileName)
             local smd = smdDat.smd
             local addLoop = smdDat.loop or false
             local setFPS = smdDat.fps or false
             local walkframes = smdDat.walkframes or false
+            local checkframes = smdDat.checkframes or true
 
             print("SMD MODEL " .. smd .. ".smd")
             if !isFirst then
                 f:Write("\n")
             end
 
-            local totalFrames = 0
-            local finalFrame = 0
-            local SMD_Data = file.Open("data/valve/smd/" .. fileName .. "/" .. smd .. ".smd","rb","GAME")
-                local data = SMD_Data:Read(SMD_Data:Size())
-                local animationData = string_Explode("\n",data)
-                local boneData = {}
-                for fileLineNumber,lineData in pairs(animationData) do
-                    if string_find(lineData,"time") then
-                        local time = string_Explode(" ",lineData)
-                        totalFrames = totalFrames + 1
-                        boneData[totalFrames] = {}
-
-                        for i = fileLineNumber + 1, #animationData do
-                            if string_find(animationData[i],"time") or string_find(animationData[i],"end") then break end
-                            local boneInfo = string_Explode(" ",animationData[i])
-                            boneData[totalFrames][boneInfo[3]] = {
-                                Pos = Vector(boneInfo[4],boneInfo[5],boneInfo[6]),
-                                Ang = Angle(boneInfo[7],boneInfo[8],boneInfo[9])
-                            }
-                        end
-                    end
-                end
-            SMD_Data:Close()
-
-            local duplicateFrame = nil
-            local lastFrameData = nil
-            local totalDuplicatesInARow = 0
-            local goalTolerance = 4
-            
-            for frameNumber,frameData in SortedPairs(boneData) do
-                if lastFrameData then
-                    local isDuplicate = nil
-                    for boneName,boneData in SortedPairs(frameData) do
-                        -- print("-------------------------------------------------------------------------------")
-                        -- print("Frame " .. frameNumber .. " | Checking bone: " .. boneName,boneData)
-                        if lastFrameData[boneName] then
-                            if lastFrameData[boneName].Pos != boneData.Pos or lastFrameData[boneName].Ang != boneData.Ang then
-                                isDuplicate = false
-                                -- print("Frame " .. frameNumber .. " | Bone " .. boneName .. " is different from the last frame!")
-                                -- print("Frame " .. frameNumber .. " | Last frame bone data: " .. tostring(lastFrameData[boneName]))
-                                -- print("Frame " .. frameNumber .. " | Current frame bone data: " .. tostring(boneData))
-                                break
-                            else
-                                -- print("Frame " .. frameNumber .. " | Bone " .. boneName .. " is the same as the last frame's bone!")
-                                -- print("Frame " .. frameNumber .. " | Last frame bone data: " .. tostring(lastFrameData[boneName].Pos))
-                                -- print("Frame " .. frameNumber .. " | Current frame bone data: " .. tostring(boneData.Pos))
-                                isDuplicate = true
-                            end
-                        -- else
-                        -- 	isDuplicate = false
-                        -- 	break
-                        end
-                    end
-                    if isDuplicate then
-                        -- print("Found duplicate frame data at frame "..frameNumber)
-                        totalDuplicatesInARow = totalDuplicatesInARow + 1
-                        if totalDuplicatesInARow >= goalTolerance then
-                            duplicateFrame = frameNumber -goalTolerance
-                            break
-                        end
-                    else
-                        totalDuplicatesInARow = 0
-                    end
-                end
-                lastFrameData = frameData
-            end
-            local cutFrames = duplicateFrame or totalFrames
-            -- local cutFrames = totalFrames > 10 && math.Round(totalFrames *0.4823151125401929) or totalFrames
+            local totalFrames, realLastFrame = CheckForRedudantFrames(f,smd)
+            local cutFrames = realLastFrame or totalFrames
 
             if hasPhys then
                 f:Write("\n")
@@ -239,6 +267,8 @@ Valve.GenerateSMDFile = function(fileName,tbl,gameID,exData)
                 AddSequence_Unique(f,v,i == 1,exData == true or Valve_HasValue(exData,v.smd),fileName)
             end
         f:Close()
+    else
+        defaultExecute()
     end
     local f = file.Open("valve/smd/" .. fileName .. ".txt","r","DATA")
         local bytes = f:Size()
@@ -339,40 +369,23 @@ Valve.CreateSequences = function(smds,defArgs,fileName,findInDir,exData)
     local addLoop = defArgs.Loop or false
     local setFPS = defArgs.FPS or false
     local walkframes = defArgs.WalkFrames or false
+    local checkFrames = defArgs.CheckFrames or false
     for _,smd in pairs(smds) do
         if string_find(string_lower(smd),".smd") then
             smd = string_sub(smd,1,-5)
         end
         if auto then
             local smdName = string_lower(smd)
-            if string_find(smdName,"idle") or string_find(smdName,"wait") or string_find(smdName,"walk") or string_find(smdName,"run") or string_find(smdName,"all") or string_find(smdName,"glide") or string_find(smdName,"loop") then
-                addLoop = true
-            elseif string_find(smdName,"walk") or string_find(smdName,"run") or string_find(smdName,"attack") or string_find(smdName,"range") or string_find(smdName,"jump") or string_find(smdName,"land") then
+            if string_find(smdName,"walk") or string_find(smdName,"run") or string_find(smdName,"attack") or string_find(smdName,"range") or string_find(smdName,"jump") or string_find(smdName,"land") then
                 walkframes = true
-                -- walkframes = 900
             end
-        end
-        if !fileName then
-            print("\n")
-            print('$Sequence "' .. smd .. '" {')
-                print('	"animations/' .. smd .. '.smd"')
-                print('	activity "ACT_' .. string_upper(smd) .. '" 1')
-                if setFPS then
-                    print('	fps ' .. setFPS)
-                end
-                if addLoop then
-                    print('	loop')
-                end
-                if walkframes && walkframes != true then
-                    print('	walkframe ' .. walkframes .. ' LX LY')
-                end
-            print('}')
         end
         list[#list +1] = {
             smd = smd,
             fps = setFPS,
             loop = addLoop,
-            walkframes = walkframes
+            walkframes = walkframes,
+            checkframes = checkFrames
         }
     end
     if fileName then
