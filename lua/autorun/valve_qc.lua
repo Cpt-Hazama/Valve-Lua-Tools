@@ -111,6 +111,7 @@ Valve.GenerateSMDFile = function(fileName,tbl,gameID,exData)
         local setFPS = smdDat.fps or false
         local walkframes = smdDat.walkframes or false
         local checkframes = smdDat.checkframes or false
+        local scale = smdDat.scale or false
         local totalFrames, realLastFrame = GetRealFrameData(f,smd)
 
         print("SMD MODEL " .. smd .. ".smd")
@@ -126,6 +127,10 @@ Valve.GenerateSMDFile = function(fileName,tbl,gameID,exData)
             if setFPS then
                 f:Write("\n")
                 f:Write('	fps ' .. setFPS)
+            end
+            if scale then
+                f:Write("\n")
+                f:Write('	scale ' .. scale)
             end
             if addLoop then
                 f:Write("\n")
@@ -232,6 +237,10 @@ Valve.GenerateSMDFile = function(fileName,tbl,gameID,exData)
                 if setFPS then
                     f:Write("\n")
                     f:Write('	fps ' .. setFPS)
+                end
+                if scale then
+                    f:Write("\n")
+                    f:Write('	scale ' .. scale)
                 end
                 if addLoop then
                     f:Write("\n")
@@ -370,6 +379,7 @@ Valve.CreateSequences = function(smds,defArgs,fileName,findInDir,exData)
     local setFPS = defArgs.FPS or false
     local walkframes = defArgs.WalkFrames or false
     local checkFrames = defArgs.CheckFrames or false
+    local scale = defArgs.Scale or false
     for _,smd in pairs(smds) do
         if string_find(string_lower(smd),".smd") then
             smd = string_sub(smd,1,-5)
@@ -385,7 +395,8 @@ Valve.CreateSequences = function(smds,defArgs,fileName,findInDir,exData)
             fps = setFPS,
             loop = addLoop,
             walkframes = walkframes,
-            checkframes = checkFrames
+            checkframes = checkFrames,
+            scale = scale
         }
     end
     if fileName then
