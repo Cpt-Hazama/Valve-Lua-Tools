@@ -2,6 +2,7 @@ Valve = Valve or {}
 
 local table_insert = table.insert
 local table_remove = table.remove
+local table_concat = table.concat
 
 local string_find = string.find
 local string_lower = string.lower
@@ -10,6 +11,8 @@ local string_sub = string.sub
 local string_Replace = string.Replace
 local string_len = string.len
 local string_Explode = string.Explode
+local string_gsub = string.gsub
+local string_format = string.format
 
 local function Valve_HasValue(tbl, val)
 	if !istable(tbl) then return false end
@@ -104,10 +107,10 @@ Valve.GenerateSMDFile = function(fileName,tbl,gameID,exData)
         return totalFrames, duplicateFrame
     end
 
-    local function AddSequence(f,smdDat,isFirst)
+    local function AddSequence(f,smdDat,isFirst,eventData)
         local smd = smdDat.smd
         local smdName = string_lower(smd)
-        local addLoop = string_find(smdName,"idle") or string_find(smdName,"wait") or string_find(smdName,"walk") or string_find(smdName,"run") or string_find(smdName,"glide") or string_find(smdName,"loop")
+        local addLoop = string_find(smdName,"idle") or string_find(smdName,"0000") or string_find(smdName,"wait") or string_find(smdName,"walk") or string_find(smdName,"run") or string_find(smdName,"glide") or string_find(smdName,"loop")
         local setFPS = smdDat.fps or false
         local walkframes = smdDat.walkframes or false
         local checkframes = smdDat.checkframes or false
@@ -176,17 +179,69 @@ Valve.GenerateSMDFile = function(fileName,tbl,gameID,exData)
                     print("@" .. smd .. " : 0 - " .. totalFrames .. "")
                 end
             end
+
+            if eventData then
+                if eventData[smd] then
+                    f:Write("\n")
+                    for i,v in pairs(eventData[smd]) do
+                        f:Write("\n")
+                        local eventDataFormatted = string_format('	{ event %s %s "%s" }', v.eventFlag, v.eventFrame, v.eventData)
+                        f:Write(eventDataFormatted)
+                        -- local evData = v.eventData
+                        -- evData = string_gsub(evData,"\n","")
+                        -- f:Write('	{ event ' .. v.eventFlag .. ' ' .. v.eventFrame .. ' "' .. evData .. '" }')
+                    end
+                end
+            end
+
             f:Write("\n")
         f:Write('}')
     end
 
     local function defaultExecute()
+        local eventFiles = file.Find("valve/smd/" .. fileName .. "/events.QCI","DATA")
+        local eventData = {}
+        if eventFiles then
+            -- local totalTests = 0
+            for _,eventFile in pairs(eventFiles) do
+                local f = file.Open("valve/smd/" .. fileName .. "/events.QCI","rb","DATA")
+                    local data = f:Read(f:Size())
+                    local eventLines = string_Explode("\n",data)
+                    local curSequence
+                    for _,line in pairs(eventLines) do
+                        if string_find(line,"$Sequence") then
+                            -- if totalTests >= 1 then break end
+                            curSequence = line:match("\"(.-)\"")
+                            eventData[curSequence] = {}
+                            -- totalTests = totalTests +1
+                        end
+                        if string_find(line,"{ event") then
+                            local eventInfo = string_Explode(" ",line)
+                            local eventDataFix = table_concat(eventInfo," ",5)
+                            eventDataFix = string_Replace(eventDataFix,'"',"")
+                            eventDataFix = string_Replace(eventDataFix," }","")
+                            -- eventDataFix = string_gsub(eventDataFix,"\n","")
+                            local event = {
+                                eventFlag = eventInfo[3],
+                                eventFrame = eventInfo[4],
+                                eventData = eventDataFix
+                            }
+                            -- print("---------New Event Line-------------")
+                            -- print("Flag",event.eventFlag)
+                            -- print("Frame",event.eventFrame)
+                            -- print("Data",event.eventData)
+                            table_insert(eventData[curSequence],event)
+                        end
+                    end
+                f:Close()
+            end
+        end
         local f = file.Open("valve/smd/" .. fileName .. ".txt","w","DATA")
             print("Compiling '" .. fileName .. ".txt' ...")
             f:Write("// Compiled using Valve Lua Tools")
             f:Write("\n")
             for i,v in pairs(tbl) do
-                AddSequence(f,v,i == 1)
+                AddSequence(f,v,i == 1,eventData)
             end
         f:Close()
     end
