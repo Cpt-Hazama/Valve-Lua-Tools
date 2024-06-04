@@ -14,6 +14,14 @@ local string_Explode = string.Explode
 local string_gsub = string.gsub
 local string_format = string.format
 
+if SERVER then
+    util.AddNetworkString("Valve.FlashWindow")
+else
+    net.Receive("Valve.FlashWindow",function()
+        system.FlashWindow()
+    end)
+end
+
 local function Valve_HasValue(tbl, val)
 	if !istable(tbl) then return false end
 	for x = 1, #tbl do
@@ -248,6 +256,137 @@ Valve.GenerateSMDFile = function(fileName,tbl,gameID,exData)
 
     if gameID == nil then
         defaultExecute()
+    elseif gameID == "GBFR" then
+        local function GBFR_AddSequence(f,smdDat,isFirst,eventData)
+            local actTrans = {
+                // Main
+                ["0000"] = "ACT_IDLE_ANGRY",
+                ["0001"] = "ACT_IDLE",
+                ["0a30"] = "ACT_WALK",
+                ["0a20"] = "ACT_WALK_STIMULATED",
+                ["0015"] = "ACT_RUN",
+                ["0010"] = "ACT_RUN_STIMULATED",
+                ["0020"] = "ACT_SPRINT",
+                // Jump
+                ["0031"] = "ACT_JUMP",
+                ["0032"] = "ACT_GLIDE",
+                ["0033"] = "ACT_LAND",
+                // Blends
+                ["0070"] = "ACT_WALK_AGITATED",
+                ["0071"] = "ACT_WALK_AGITATED",
+                ["0072"] = "ACT_WALK_AGITATED",
+                ["0073"] = "ACT_WALK_AGITATED",
+                // Dead
+                ["0563"] = "ACT_WALK_STEALTH",
+            }
+            local smd = smdDat.smd
+            local smdName = string_lower(smd)
+            local addLoop = actTrans[smdName] != nil
+            local setFPS = smdDat.fps or false
+            local walkframes = smdDat.walkframes or false
+            if actTrans[smdName] && string_find(actTrans[smdName],"IDLE") then
+                walkframes = false
+            end
+            local checkframes = smdDat.checkframes or false
+            local scale = smdDat.scale or false
+            local totalFrames, realLastFrame = GetRealFrameData(f,smd)
+    
+            print("SMD MODEL " .. smd .. ".smd")
+            if !isFirst then
+                f:Write("\n")
+            end
+            f:Write("\n")
+            f:Write('$Sequence "' .. smd .. '" {')
+                f:Write("\n")
+                f:Write('	"animations/' .. smd .. '.smd"')
+                f:Write("\n")
+                if actTrans[smdName] then
+                    f:Write('	activity "' .. actTrans[smdName] .. '" 1')
+                else
+                    f:Write('	activity "ACT_' .. string_upper(smd) .. '" 1')
+                end
+                if setFPS then
+                    f:Write("\n")
+                    f:Write('	fps ' .. setFPS)
+                end
+                if scale then
+                    f:Write("\n")
+                    f:Write('	scale ' .. scale)
+                end
+                if addLoop then
+                    f:Write("\n")
+                    f:Write('	loop')
+                end
+                if walkframes then
+                    local calcIncrease = totalFrames /32
+                    for i = 1, 32 do
+                        local calculateFrame = math.floor(math.Round(calcIncrease * i))
+                        if calculateFrame > totalFrames then
+                            calculateFrame = totalFrames
+                        end
+                        f:Write("\n")
+                        if addLoop then
+                            f:Write('	walkframe ' .. calculateFrame .. ' LX')
+                        else
+                            f:Write('	walkframe ' .. calculateFrame .. ' LX LY')
+                        end
+                    end
+                    -- f:Write('	walkframe ' .. totalFrames .. ' LX LY')
+                    print("@" .. smd .. " : 0 - " .. totalFrames .. "")
+                end
+    
+                if eventData then
+                    if eventData[smd] then
+                        f:Write("\n")
+                        for i,v in pairs(eventData[smd]) do
+                            f:Write("\n")
+                            local eventDataFormatted = string_format('	{ event %s %s "%s" }', v.eventFlag, v.eventFrame, v.eventData)
+                            f:Write(eventDataFormatted)
+                        end
+                    end
+                end
+    
+                f:Write("\n")
+            f:Write('}')
+        end
+    
+        local eventFiles = file.Find("valve/smd/" .. fileName .. "/events.QCI","DATA")
+        local eventData = {}
+        if eventFiles then
+            for _,eventFile in pairs(eventFiles) do
+                local f = file.Open("valve/smd/" .. fileName .. "/events.QCI","rb","DATA")
+                    local data = f:Read(f:Size())
+                    local eventLines = string_Explode("\n",data)
+                    local curSequence
+                    for _,line in pairs(eventLines) do
+                        if string_find(line,"$Sequence") then
+                            curSequence = line:match("\"(.-)\"")
+                            eventData[curSequence] = {}
+                        end
+                        if string_find(line,"{ event") then
+                            local eventInfo = string_Explode(" ",line)
+                            local eventDataFix = table_concat(eventInfo," ",5)
+                            eventDataFix = string_Replace(eventDataFix,'"',"")
+                            eventDataFix = string_Replace(eventDataFix," }","")
+                            local event = {
+                                eventFlag = eventInfo[3],
+                                eventFrame = eventInfo[4],
+                                eventData = eventDataFix
+                            }
+                            table_insert(eventData[curSequence],event)
+                        end
+                    end
+                f:Close()
+            end
+        end
+        local f = file.Open("valve/smd/" .. fileName .. ".txt","w","DATA")
+            print("Compiling '" .. fileName .. ".txt' ...")
+            f:Write("// Compiled using Valve Lua Tools")
+            f:Write("\n")
+            for i,v in pairs(tbl) do
+                GBFR_AddSequence(f,v,i == 1,eventData)
+            end
+        f:Close()
     elseif gameID == "Genshin" then
         local function AddSequence_Unique(f,smdDat,isFirst,hasPhys,fileName)
             local smd = smdDat.smd
@@ -340,6 +479,13 @@ Valve.GenerateSMDFile = function(fileName,tbl,gameID,exData)
         print("Completed '/common/GarrysMod/garrysmod/data/valve/smd/" .. fileName .. ".txt'")
     f:Close()
 
+    if CLIENT then
+        system.FlashWindow()
+    else
+        net.Start("Valve.FlashWindow")
+        net.Broadcast()
+    end
+
     print('Note: If you do not want to manually add the sequences to the QC file, you can simply copy the file to the QC folder, change the .TXT extension, and add $include "' .. fileName .. '.qc" to the original QC file.')
 end
 --------------------------------------------------------------------------------------------------------------------------------------------
@@ -416,8 +562,10 @@ end
         Valve.CreateSequences( tbl )
 -----------------------------------------------------------]]
 Valve.CreateSequences = function(smds,defArgs,fileName,findInDir,exData)
+    local setName = fileName or smds
+    local checkDir = findInDir or true
     if type(smds) != "table" then
-        if findInDir then
+        if checkDir then
             smds = file.Find("valve/smd/" .. smds .. "/*.smd","DATA")
         else
             smds = Valve.ReadSMDs(smds)
@@ -454,7 +602,5 @@ Valve.CreateSequences = function(smds,defArgs,fileName,findInDir,exData)
             scale = scale
         }
     end
-    if fileName then
-        Valve.GenerateSMDFile(fileName,list,gameID,exData)
-    end
+    Valve.GenerateSMDFile(setName,list,gameID,exData)
 end
